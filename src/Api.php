@@ -4,33 +4,42 @@ declare(strict_types=1);
 
 namespace Riesenia\GlsOnline;
 
+use Symfony\Component\OptionsResolver\OptionsResolver;
+
 class Api
 {
     /** @var string */
     protected $wsdl = 'https://online.gls-slovakia.sk/webservices/soap_server.php?wsdl&ver=18.02.20.01';
 
-    /** @var string|null */
+    /** @var string */
     protected $username;
 
-    /** @var string|null */
+    /** @var string */
     protected $password;
+
+    /** @var string string */
+    protected $senderId;
 
     /** @var \SoapClient|null */
     protected $soap;
 
-    /** @var string|null */
-    protected $messages;
+    /** @var array  */
+    protected $dataScheme = [
+        'Shipments'
+    ];
 
     /**
      * Api constructor.
      *
-     * @param string|null $username
-     * @param string|null $password
+     * @param string $username
+     * @param string $password
+     * @param string $senderId
      */
-    public function __construct(string $username = null, string $password = null)
+    public function __construct(string $username, string $password, string $senderId)
     {
         $this->username = $username;
         $this->password = $password;
+        $this->senderId = $senderId;
 
         try {
             $this->soap = new \SoapClient($this->wsdl);
@@ -80,7 +89,7 @@ class Api
         $response = $this->soap->_soapCall('getprintedlabels_xml', [
             'username' => $this->username,
             'password' => $this->password,
-            'senderid' => $this->username,
+            'senderid' => $this->senderId,
             'data' => $data
         ]);
 
@@ -100,21 +109,20 @@ class Api
      *
      * @return string
      */
-    protected function prepareRequestData(array $data): string
+    public function prepareRequestData(array $data): string
     {
         $xml = new \SimpleXMLElement('<root></root>');
         $xmlData = $xml->addChild('DTU');
 
         $this->arrayToXml($data, $xmlData);
 
-        $dom = \dom_import_simplexml($xml);
-
-        $innerXML = '';
-        foreach ($dom->childNodes as $node) {
-            $innerXML .= $node->ownerDocument->saveXML($node);
+        $dom = new \DOMDocument();
+        $dom->loadXML($xmlData->asXML());
+        if (!$dom->schemaValidate(__DIR__ . '/../DTU.xsd')) {
+            throw new \Exception('Invalid schema.');
         }
 
-        return $innerXML;
+        return $xmlData->asXML();
     }
 
     /**
