@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Riesenia\GlsOnline;
 
-use Symfony\Component\OptionsResolver\OptionsResolver;
-
 class Api
 {
     /** @var string */
@@ -23,10 +21,8 @@ class Api
     /** @var \SoapClient|null */
     protected $soap;
 
-    /** @var array  */
-    protected $dataScheme = [
-        'Shipments'
-    ];
+    /** @var array */
+    protected $errors = [];
 
     /**
      * Api constructor.
@@ -66,11 +62,9 @@ class Api
             'data' => $data
         ]);
 
-        $response = simplexml_load_string($response);
+        $response = \simplexml_load_string($response);
 
-        if (isset($response->Shipments->Shipment->Status['ErrorCode']) && $response->Shipments->Shipment->Status['ErrorCode'] !== 0) {
-            throw new \Exception('Request failed: ' . $response->Shipments->Shipment->Status['ErrorDescription']);
-        }
+        $this->setErrors($response);
 
         return $response->Shipments;
     }
@@ -93,11 +87,9 @@ class Api
             'data' => $data
         ]);
 
-        $response = simplexml_load_string($response);
+        $response = \simplexml_load_string($response);
 
-        if (isset($response->Shipments->Shipment->Status['ErrorCode']) && $response->Shipments->Shipment->Status['ErrorCode'] !== 0) {
-            throw new \Exception('Request failed: ' . $response->Shipments->Shipment->Status['ErrorDescription']);
-        }
+        $this->setErrors($response);
 
         return $response->Shipments->Shipment->Parcels;
     }
@@ -156,5 +148,35 @@ class Api
                 $xml->addChild($key, \htmlspecialchars($value));
             }
         }
+    }
+
+    /**
+     * Set errors from response.
+     *
+     * @param \SimpleXMLElement $response
+     */
+    protected function setErrors(\SimpleXMLElement $response)
+    {
+        $errors = [];
+        foreach ($response->Shipments->Shipment as $item) {
+            if (isset($item->Status['ErrorDescription']) && $item->Status['ErrorDescription']) {
+                $errors[] = [
+                    'shipment' => (string) $item['ClientRef'],
+                    'message' => (string) $item->Status['ErrorDescription']
+                ];
+            }
+        }
+
+        $this->errors = $errors;
+    }
+
+    /**
+     * Get errors.
+     *
+     * @return array
+     */
+    public function getErrors(): array
+    {
+        return $this->errors;
     }
 }
