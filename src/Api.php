@@ -70,9 +70,7 @@ class Api
             'data' => $data
         ]);
 
-        $response = \simplexml_load_string($response);
         $response = $this->parseResponse($response);
-        \var_dump($response);
 
         return $response;
     }
