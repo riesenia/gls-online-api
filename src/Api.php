@@ -39,6 +39,7 @@ class Api
      * @param string $username
      * @param string $password
      * @param string $senderId
+     * @param string $printerTemplate
      */
     public function __construct(string $username, string $password, string $senderId, string $printerTemplate = 'A4')
     {
@@ -71,7 +72,7 @@ class Api
 
         $response = \simplexml_load_string($response);
         $response = $this->parseResponse($response);
-        var_dump($response);
+        \var_dump($response);
 
         return $response;
     }
@@ -121,6 +122,16 @@ class Api
         }
 
         return $xmlData->asXML();
+    }
+
+    /**
+     * Get errors.
+     *
+     * @return array
+     */
+    public function getErrors(): array
+    {
+        return $this->errors;
     }
 
     /**
@@ -184,7 +195,7 @@ class Api
                 if ($item->Parcels->Parcel->count() > 1) {
                     try {
                         foreach ($item->Parcels->Parcel as $parcel) {
-                            $this->addPagesToPdf((string)$parcel->Label);
+                            $this->addPagesToPdf((string) $parcel->Label);
                         }
                         $items[] = $this->fpdi->Output('S');
 
@@ -220,22 +231,12 @@ class Api
      */
     protected function addPagesToPdf(string $pdfData)
     {
-        $pageCount = $this->fpdi->setSourceFile(StreamReader::createByString(base64_decode($pdfData)));
+        $pageCount = $this->fpdi->setSourceFile(StreamReader::createByString(\base64_decode($pdfData)));
 
-        for ($i = 1; $i <= $pageCount; $i++) {
+        for ($i = 1; $i <= $pageCount; ++$i) {
             $template = $this->fpdi->importPage($i);
             $this->fpdi->AddPage();
             $this->fpdi->useTemplate($template);
         }
-    }
-
-    /**
-     * Get errors.
-     *
-     * @return array
-     */
-    public function getErrors(): array
-    {
-        return $this->errors;
     }
 }
