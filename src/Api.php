@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Riesenia\GlsOnline;
 
+use setasign\Fpdi\Fpdi;
+use setasign\Fpdi\PdfParser\StreamReader;
+
 class Api
 {
     /** @var string */
@@ -15,10 +18,16 @@ class Api
     /** @var string */
     protected $password;
 
-    /** @var string string */
+    /** @var string */
     protected $senderId;
 
-    /** @var \SoapClient|null */
+    /** @var string */
+    protected $printerTemplate;
+
+    /** @var Fpdi */
+    protected $fpdi;
+
+    /** @var \SoapClient */
     protected $soap;
 
     /** @var array */
@@ -31,17 +40,15 @@ class Api
      * @param string $password
      * @param string $senderId
      */
-    public function __construct(string $username, string $password, string $senderId)
+    public function __construct(string $username, string $password, string $senderId, string $printerTemplate = 'A4')
     {
         $this->username = $username;
         $this->password = $password;
         $this->senderId = $senderId;
+        $this->printerTemplate = $printerTemplate;
+        $this->fpdi = new Fpdi();
 
-        try {
-            $this->soap = new \SoapClient($this->wsdl);
-        } catch (\Exception $e) {
-            throw new \Exception('Failed to build soap client');
-        }
+        $this->soap = new \SoapClient($this->wsdl);
     }
 
     /**
@@ -63,10 +70,10 @@ class Api
         ]);
 
         $response = \simplexml_load_string($response);
+        $response = $this->parseResponse($response);
+        var_dump($response);
 
-        $this->setErrors($response);
-
-        return $response->Shipments;
+        return $response;
     }
 
     /**
@@ -84,14 +91,13 @@ class Api
             'username' => $this->username,
             'password' => $this->password,
             'senderid' => $this->senderId,
+            'printertemplate' => $this->printerTemplate,
             'data' => $data
         ]);
 
-        $response = \simplexml_load_string($response);
+        $response = $this->parseResponse($response);
 
-        $this->setErrors($response);
-
-        return $response->Shipments->Shipment->Parcels;
+        return $response;
     }
 
     /**
@@ -151,23 +157,76 @@ class Api
     }
 
     /**
-     * Set errors from response.
+     * Parse response.
      *
-     * @param \SimpleXMLElement $response
+     * @param string $response
+     *
+     * @return array
      */
-    protected function setErrors(\SimpleXMLElement $response)
+    protected function parseResponse(string $response): array
     {
+        $response = \simplexml_load_string($response);
         $errors = [];
+        $items = [];
+
         foreach ($response->Shipments->Shipment as $item) {
+            // skip in case of error
             if (isset($item->Status['ErrorDescription']) && $item->Status['ErrorDescription']) {
                 $errors[] = [
                     'shipment' => (string) $item['ClientRef'],
                     'message' => (string) $item->Status['ErrorDescription']
                 ];
+                continue;
             }
+
+            // parse multiple PDF documents into one
+            if (isset($item->Parcels)) {
+                if ($item->Parcels->Parcel->count() > 1) {
+                    try {
+                        foreach ($item->Parcels->Parcel as $parcel) {
+                            $this->addPagesToPdf((string)$parcel->Label);
+                        }
+                        $items[] = $this->fpdi->Output('S');
+
+                        continue;
+                    } catch (\Exception $e) {
+                        $errors[] = [
+                            'parcelId' => $parcel['PclId'],
+                            'message' => $e->getMessage()
+                        ];
+
+                        continue;
+                    }
+                } else {
+                    $this->addPagesToPdf((string) $item->Parcels->Parcel->Label);
+                    $items[] = $this->fpdi->Output('S');
+
+                    continue;
+                }
+            }
+
+            $items = $item;
         }
 
         $this->errors = $errors;
+
+        return $items;
+    }
+
+    /**
+     * Append pages to single pdf.
+     *
+     * @param string $pdfData
+     */
+    protected function addPagesToPdf(string $pdfData)
+    {
+        $pageCount = $this->fpdi->setSourceFile(StreamReader::createByString(base64_decode($pdfData)));
+
+        for ($i = 1; $i <= $pageCount; $i++) {
+            $template = $this->fpdi->importPage($i);
+            $this->fpdi->AddPage();
+            $this->fpdi->useTemplate($template);
+        }
     }
 
     /**
