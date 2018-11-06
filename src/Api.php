@@ -57,9 +57,9 @@ class Api
      *
      * @param array $shipments
      *
-     * @return \SimpleXMLElement
+     * @return array
      */
-    public function send(array $shipments): \SimpleXMLElement
+    public function send(array $shipments): array
     {
         $data = $this->prepareRequestData($shipments);
 
@@ -80,9 +80,9 @@ class Api
      *
      * @param array $data
      *
-     * @return \SimpleXMLElement
+     * @return array
      */
-    public function getPrintedLabels(array $data): \SimpleXMLElement
+    public function getPrintedLabels(array $data): array
     {
         $data = $this->prepareRequestData($data);
 
@@ -190,25 +190,22 @@ class Api
 
             // parse multiple PDF documents into one
             if (isset($item->Parcels)) {
-                if ($item->Parcels->Parcel->count() > 1) {
-                    try {
-                        foreach ($item->Parcels->Parcel as $parcel) {
-                            $this->addPagesToPdf((string) $parcel->Label);
-                        }
-                        $items[] = $this->fpdi->Output('S');
+                if (!$item->Parcels->Parcel->count()) {
+                    continue;
+                }
 
-                        continue;
-                    } catch (\Exception $e) {
-                        $errors[] = [
-                            'parcelId' => $parcel['PclId'],
-                            'message' => $e->getMessage()
-                        ];
-
-                        continue;
+                try {
+                    foreach ($item->Parcels->Parcel as $parcel) {
+                        $this->addPagesToPdf((string) $parcel->Label);
                     }
-                } else {
-                    $this->addPagesToPdf((string) $item->Parcels->Parcel->Label);
                     $items[] = $this->fpdi->Output('S');
+
+                    continue;
+                } catch (\Exception $e) {
+                    $errors[] = [
+                        'parcelId' => $parcel['PclId'],
+                        'message' => $e->getMessage()
+                    ];
 
                     continue;
                 }
