@@ -1,0 +1,76 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<xs:schema elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="DTU" nillable="true" type="DTU" />
+  <xs:complexType name="DTU">
+    <xs:sequence>
+      <xs:element minOccurs="0" maxOccurs="1" name="Shipments" type="ArrayOfShipment" />
+    </xs:sequence>
+    <xs:attribute name="DataSource" type="xs:unsignedByte" use="required" />
+    <xs:attribute name="Version" type="xs:string" />
+    <xs:attribute name="Created" type="xs:dateTime" use="required" />
+  </xs:complexType>
+  <xs:complexType name="ArrayOfShipment">
+    <xs:sequence>
+      <xs:element minOccurs="0" maxOccurs="unbounded" name="Shipment" nillable="true" type="Shipment" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="Shipment">
+    <xs:sequence>
+      <xs:element minOccurs="0" maxOccurs="1" name="PclIDs" type="ArrayOfLong" />
+      <xs:element minOccurs="0" maxOccurs="1" name="From" type="Customer" />
+      <xs:element minOccurs="0" maxOccurs="1" name="To" type="Customer" />
+      <xs:element minOccurs="0" maxOccurs="1" name="Services" type="ArrayOfService" />
+    </xs:sequence>
+    <xs:attribute name="SenderID" type="xs:int" use="required" />
+    <xs:attribute name="ExpSenderID" type="xs:int" use="required" />
+    <xs:attribute name="PickupDate" type="xs:dateTime" use="required" />
+    <xs:attribute name="ClientRef" type="xs:string" />
+    <xs:attribute name="Depo" type="xs:string" />
+    <xs:attribute name="Driver" type="xs:string" />
+    <xs:attribute name="CODAmount" type="xs:decimal" use="required" />
+    <xs:attribute name="CODCurr" type="xs:string" />
+    <xs:attribute name="CODRef" type="xs:string" />
+  </xs:complexType>
+  <xs:complexType name="ArrayOfLong">
+    <xs:sequence>
+      <xs:element minOccurs="0" maxOccurs="unbounded" name="long" type="xs:long" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="Customer">
+    <xs:attribute name="Name" type="xs:string" />
+    <xs:attribute name="Address" type="xs:string" />
+    <xs:attribute name="ZipCode" type="xs:string" />
+    <xs:attribute name="City" type="xs:string" />
+    <xs:attribute name="CtrCode" type="xs:string" />
+    <xs:attribute name="ContactName" type="xs:string" />
+    <xs:attribute name="ContactPhone" type="xs:string" />
+    <xs:attribute name="MobilePhone" type="xs:string" />
+    <xs:attribute name="EmailAddress" type="xs:string" />
+  </xs:complexType>
+  <xs:complexType name="ArrayOfService">
+    <xs:sequence>
+      <xs:element minOccurs="0" maxOccurs="unbounded" name="Service" nillable="true" type="Service" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="Service">
+    <xs:sequence>
+      <xs:element minOccurs="0" maxOccurs="1" name="Info" type="ArrayOfServiceInfo" />
+    </xs:sequence>
+    <xs:attribute name="Code" type="xs:string" />
+  </xs:complexType>
+  <xs:complexType name="ArrayOfServiceInfo">
+    <xs:sequence>
+      <xs:element minOccurs="0" maxOccurs="unbounded" name="ServiceInfo" nillable="true" type="ServiceInfo" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="ServiceInfo">
+    <xs:attribute name="InfoType" type="ServiceInfoType" use="required" />
+    <xs:attribute name="InfoData" type="xs:string" />
+  </xs:complexType>
+  <xs:simpleType name="ServiceInfoType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="INFO" />
+      <xs:enumeration value="CONTENT" />
+    </xs:restriction>
+  </xs:simpleType>
+</xs:schema>

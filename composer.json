@@ -1,0 +1,6 @@
+{
+    "require": {
+        "rshop/php-cs-fixer-config": "^1.2",
+        "setasign/fpdi-fpdf": "^2.0"
+    }
+}
