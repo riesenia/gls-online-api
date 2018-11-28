@@ -3,5 +3,10 @@
     "description": "Gls online API client implementation",
     "require-dev": {
         "rshop/php-cs-fixer-config": "^1.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "Riesenia\\GlsOnline\\": "src/"
+        }
     }
 }

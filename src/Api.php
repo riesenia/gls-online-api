@@ -24,9 +24,6 @@ class Api
     /** @var \SoapClient */
     protected $soap;
 
-    /** @var array */
-    protected $errors = [];
-
     /**
      * Api constructor.
      *
@@ -42,164 +39,54 @@ class Api
         $this->senderId = $senderId;
         $this->printerTemplate = $printerTemplate;
 
-        $this->soap = new \SoapClient($this->wsdl);
-    }
-
-    /**
-     * Create shipments.
-     *
-     * @param array $shipments
-     *
-     * @return array
-     */
-    public function send(array $shipments): array
-    {
-        $data = $this->prepareRequestData($shipments);
-
-        $response = $this->soap->__soapCall('preparelabels_xml', [
-            'username' => $this->username,
-            'password' => $this->password,
-            'senderid' => $this->username,
-            'data' => $data
+        $this->soap = new \SoapClient($this->wsdl, [
+            'trace' => 1
         ]);
-
-        $response = $this->parseResponse($response);
-
-        return $response;
     }
 
     /**
-     * Fetch printed labels.
+     * Create shipment and return labels.
      *
-     * @param array $data
-     *
-     * @return array
-     */
-    public function getPrintedLabels(array $data): array
-    {
-        $data = $this->prepareRequestData($data);
-
-        $response = $this->soap->_soapCall('getprintedlabels_xml', [
-            'username' => $this->username,
-            'password' => $this->password,
-            'senderid' => $this->senderId,
-            'printertemplate' => $this->printerTemplate,
-            'data' => $data
-        ]);
-
-        $response = $this->parseResponse($response);
-
-        return $response;
-    }
-
-    /**
-     * Build XML string.
-     *
-     * @param array $data
+     * @param array $shipment
      *
      * @return string
      */
-    public function prepareRequestData(array $data): string
+    public function send(array $shipment): string
     {
-        $xml = new \SimpleXMLElement('<root></root>');
-        $xmlData = $xml->addChild('DTU');
+        $auth = [
+            'username' => $this->username,
+            'password' => $this->password,
+            'senderid' => $this->username,
+        ];
 
-        $this->arrayToXml($data, $xmlData);
+        $data = array_merge($auth, $shipment);
+        $data['hash'] = $this->soap->__soapCall('getglshash', $data);
 
-        $dom = new \DOMDocument();
-        $dom->loadXML($xmlData->asXML());
-        if (!$dom->schemaValidate(__DIR__ . '/../DTU.xsd')) {
-            throw new \Exception('Invalid schema.');
+        $response = $this->soap->__soapCall('printlabel', $data);
+
+        if ($response->successfull !== true) {
+            throw new \Exception('Request failed with: ' . $response->errcode . '. ' . $response->errdesc);
         }
 
-        return $xmlData->asXML();
+        return $response;
     }
 
     /**
-     * Get errors.
+     * Get hash based on request fields.
      *
-     * @return array
+     * @param array $shipment
+     *
+     * @return string
      */
-    public function getErrors(): array
+    protected function _getPrintLabelHash(array $shipment): string
     {
-        return $this->errors;
-    }
-
-    /**
-     * Convert array to XML.
-     *
-     * @param array             $array
-     * @param \SimpleXMLElement $xml
-     */
-    protected function arrayToXml(array $array, \SimpleXMLElement $xml)
-    {
-        foreach ($array as $key => $value) {
-            if (\is_string($key) && \strpos($key, '@') === 0) {
-                $xml->addAttribute(\substr($key, 1), $value);
-                continue;
-            }
-            if (\is_array($value)) {
-                if (\array_keys($value) === \range(0, \count($value) - 1)) {
-                    foreach ($value as $item) {
-                        if (\is_array($item)) {
-                            $subnode = $xml->addChild($key);
-                            $this->arrayToXml($item, $subnode);
-                        } else {
-                            $xml->addChild($key, "$item");
-                        }
-                    }
-                } else {
-                    $subnode = $xml->addChild($key);
-                    $this->arrayToXml($value, $subnode);
-                }
-            } else {
-                $xml->addChild($key, \htmlspecialchars($value));
-            }
-        }
-    }
-
-    /**
-     * Parse response.
-     *
-     * @param string $response
-     *
-     * @return array
-     */
-    protected function parseResponse(string $response): array
-    {
-        $response = \simplexml_load_string($response);
-        $errors = [];
-        $items = [];
-
-        foreach ($response->Shipments->Shipment as $item) {
-            // skip in case of error
-            if (isset($item->Status['ErrorCode']) && $item->Status['ErrorCode'] != 0) {
-                $errors[] = [
-                    'shipment' => (string) $item['ClientRef'],
-                    'message' => (string) $item->Status['ErrorDescription']
-                ];
-                continue;
-            }
-
-            if (isset($item->Parcels)) {
-                if (!$item->Parcels->Parcel->count()) {
-                    continue;
-                }
-
-                foreach ($item->Parcels->Parcel as $parcel) {
-                    $items[] = (string) $parcel->Label;
-                }
-
-                continue;
-            } else {
-                foreach ($item->PclIDs->long as $id) {
-                    $items[] = $id;
-                }
+        $hashBase = '';
+        foreach($shipment as $key => $value) {
+            if (!in_array($key, ['services', 'hash', 'timestamp', 'printit', 'printertemplate', 'customlabel'])) {
+                $hashBase .= (string) $value;
             }
         }
 
-        $this->errors = $errors;
-
-        return $items;
+        return sha1($hashBase);
     }
 }
