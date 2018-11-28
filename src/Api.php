@@ -75,7 +75,7 @@ class Api
      *
      * @return array
      */
-    public function getPrintedLabels(array $data): array 
+    public function getPrintedLabels(array $data): array
     {
         $data = $this->prepareRequestData($data);
 
