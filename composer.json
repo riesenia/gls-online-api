@@ -1,9 +1,6 @@
 {
     "name": "riesenia/gls-online-api",
     "description": "Gls online API client implementation",
-    "require": {
-        "setasign/fpdi-fpdf": "^2.0"
-    },
     "require-dev": {
         "rshop/php-cs-fixer-config": "^1.2"
     }

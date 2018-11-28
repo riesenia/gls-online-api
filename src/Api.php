@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace Riesenia\GlsOnline;
 
-use setasign\Fpdi\Fpdi;
-use setasign\Fpdi\PdfParser\StreamReader;
-
 class Api
 {
     /** @var string */
@@ -23,9 +20,6 @@ class Api
 
     /** @var string */
     protected $printerTemplate;
-
-    /** @var Fpdi */
-    protected $fpdi;
 
     /** @var \SoapClient */
     protected $soap;
@@ -47,7 +41,6 @@ class Api
         $this->password = $password;
         $this->senderId = $senderId;
         $this->printerTemplate = $printerTemplate;
-        $this->fpdi = new Fpdi();
 
         $this->soap = new \SoapClient($this->wsdl);
     }
@@ -82,7 +75,7 @@ class Api
      *
      * @return array
      */
-    public function getPrintedLabels(array $data): array
+    public function getPrintedLabels(array $data): array 
     {
         $data = $this->prepareRequestData($data);
 
@@ -180,7 +173,7 @@ class Api
 
         foreach ($response->Shipments->Shipment as $item) {
             // skip in case of error
-            if (isset($item->Status['ErrorDescription']) && $item->Status['ErrorDescription']) {
+            if (isset($item->Status['ErrorCode']) && $item->Status['ErrorCode'] != 0) {
                 $errors[] = [
                     'shipment' => (string) $item['ClientRef'],
                     'message' => (string) $item->Status['ErrorDescription']
@@ -188,7 +181,6 @@ class Api
                 continue;
             }
 
-            // parse multiple PDF documents into one
             if (isset($item->Parcels)) {
                 if (!$item->Parcels->Parcel->count()) {
                     continue;
@@ -196,9 +188,8 @@ class Api
 
                 try {
                     foreach ($item->Parcels->Parcel as $parcel) {
-                        $this->addPagesToPdf((string) $parcel->Label);
+                        $items[] = (string) $parcel->Label;
                     }
-                    $items[] = $this->fpdi->Output('S');
 
                     continue;
                 } catch (\Exception $e) {
@@ -217,21 +208,5 @@ class Api
         $this->errors = $errors;
 
         return $items;
-    }
-
-    /**
-     * Append pages to single pdf.
-     *
-     * @param string $pdfData
-     */
-    protected function addPagesToPdf(string $pdfData)
-    {
-        $pageCount = $this->fpdi->setSourceFile(StreamReader::createByString(\base64_decode($pdfData)));
-
-        for ($i = 1; $i <= $pageCount; ++$i) {
-            $template = $this->fpdi->importPage($i);
-            $this->fpdi->AddPage();
-            $this->fpdi->useTemplate($template);
-        }
     }
 }
