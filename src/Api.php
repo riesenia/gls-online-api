@@ -186,23 +186,16 @@ class Api
                     continue;
                 }
 
-                try {
-                    foreach ($item->Parcels->Parcel as $parcel) {
-                        $items[] = (string) $parcel->Label;
-                    }
+                foreach ($item->Parcels->Parcel as $parcel) {
+                    $items[] = (string) $parcel->Label;
+                }
 
-                    continue;
-                } catch (\Exception $e) {
-                    $errors[] = [
-                        'parcelId' => $parcel['PclId'],
-                        'message' => $e->getMessage()
-                    ];
-
-                    continue;
+                continue;
+            } else {
+                foreach ($item->PclIDs->long as $id) {
+                    $items[] = $id;
                 }
             }
-
-            $items = $item;
         }
 
         $this->errors = $errors;
