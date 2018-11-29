@@ -31,6 +31,7 @@ class Api
      * @param string $password
      * @param string $senderId
      * @param string $printerTemplate
+     * @param bool   $debugMode
      */
     public function __construct(string $username, string $password, string $senderId, string $printerTemplate = 'A4', bool $debugMode = false)
     {
@@ -59,7 +60,7 @@ class Api
             'senderid' => $this->senderId
         ];
 
-        $data = array_merge($auth, $shipment);
+        $data = \array_merge($auth, $shipment);
         $data['hash'] = $this->soap->__soapCall('getglshash', $data);
 
         $response = $this->soap->__soapCall('printlabel', $data);
@@ -81,12 +82,12 @@ class Api
     protected function _getPrintLabelHash(array $shipment): string
     {
         $hashBase = '';
-        foreach($shipment as $key => $value) {
-            if (!in_array($key, ['services', 'hash', 'timestamp', 'printit', 'printertemplate', 'customlabel'])) {
+        foreach ($shipment as $key => $value) {
+            if (!\in_array($key, ['services', 'hash', 'timestamp', 'printit', 'printertemplate', 'customlabel'])) {
                 $hashBase .= (string) $value;
             }
         }
 
-        return sha1($hashBase);
+        return \sha1($hashBase);
     }
 }
