@@ -31,8 +31,9 @@ class Api
      * @param string $password
      * @param string $senderId
      * @param string $printerTemplate
+     * @param bool   $debugMode
      */
-    public function __construct(string $username, string $password, string $senderId, string $printerTemplate = 'A4')
+    public function __construct(string $username, string $password, string $senderId, string $printerTemplate = 'A4', bool $debugMode = false)
     {
         $this->username = $username;
         $this->password = $password;
@@ -40,7 +41,7 @@ class Api
         $this->printerTemplate = $printerTemplate;
 
         $this->soap = new \SoapClient($this->wsdl, [
-            'trace' => 1
+            'trace' => $debugMode
         ]);
     }
 
@@ -49,22 +50,22 @@ class Api
      *
      * @param array $shipment
      *
-     * @return string
+     * @return \stdClass
      */
-    public function send(array $shipment): string
+    public function send(array $shipment): \stdClass
     {
         $auth = [
             'username' => $this->username,
             'password' => $this->password,
-            'senderid' => $this->username,
+            'senderid' => $this->senderId
         ];
 
-        $data = array_merge($auth, $shipment);
+        $data = \array_merge($auth, $shipment);
         $data['hash'] = $this->soap->__soapCall('getglshash', $data);
 
         $response = $this->soap->__soapCall('printlabel', $data);
 
-        if ($response->successfull !== true) {
+        if (isset($response->successfull) && $response->successfull !== true) {
             throw new \Exception('Request failed with: ' . $response->errcode . '. ' . $response->errdesc);
         }
 
@@ -81,12 +82,12 @@ class Api
     protected function _getPrintLabelHash(array $shipment): string
     {
         $hashBase = '';
-        foreach($shipment as $key => $value) {
-            if (!in_array($key, ['services', 'hash', 'timestamp', 'printit', 'printertemplate', 'customlabel'])) {
+        foreach ($shipment as $key => $value) {
+            if (!\in_array($key, ['services', 'hash', 'timestamp', 'printit', 'printertemplate', 'customlabel'])) {
                 $hashBase .= (string) $value;
             }
         }
 
-        return sha1($hashBase);
+        return \sha1($hashBase);
     }
 }
