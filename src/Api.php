@@ -31,7 +31,7 @@ class Api
     {
         $this->wsdl = \str_replace('{tld}', $tld, $this->wsdl);
         $this->username = $username;
-        $this->password = \hash('sha512', $password);
+        $this->password = \hash('sha512', $password, true);
 
         $this->soap = new \SoapClient($this->wsdl, [
             'trace' => $debugMode
@@ -47,14 +47,13 @@ class Api
      */
     public function send(array $shipment): \stdClass
     {
-        $auth = [
+        $data = [
             'Username' => $this->username,
-            'Password' => $this->password
+            'Password' => $this->password,
+            'ParcelList' => [(object) $shipment]
         ];
 
-        $data = \array_merge($auth, $shipment);
-
-        $response = $this->soap->__soapCall('PrintLabels', $data);
+        $response = $this->soap->PrintLabels(['printLabelsRequest' => $data]);
 
         if (isset($response->ErrorCode)) {
             throw new \Exception('Request failed with: ' . $response->ErrorCode . '. ' . $response->ErrorDescription);
