@@ -7,19 +7,13 @@ namespace Riesenia\GlsOnline;
 class Api
 {
     /** @var string */
-    protected $wsdl = 'https://online.gls-slovakia.sk/webservices/soap_server.php?wsdl&ver=18.02.20.01';
+    protected $wsdl = 'https://api.mygls.{tld}/ParcelService.svc?singleWsdl';
 
     /** @var string */
     protected $username;
 
     /** @var string */
     protected $password;
-
-    /** @var string */
-    protected $senderId;
-
-    /** @var string */
-    protected $printerTemplate;
 
     /** @var \SoapClient */
     protected $soap;
@@ -29,16 +23,15 @@ class Api
      *
      * @param string $username
      * @param string $password
-     * @param string $senderId
+     * @param string $tld
      * @param string $printerTemplate
      * @param bool   $debugMode
      */
-    public function __construct(string $username, string $password, string $senderId, string $printerTemplate = 'A4', bool $debugMode = false)
+    public function __construct(string $username, string $password, string $tld = 'sk', bool $debugMode = false)
     {
+        $this->wsdl = \str_replace('{tld}', $tld, $this->wsdl);
         $this->username = $username;
-        $this->password = $password;
-        $this->senderId = $senderId;
-        $this->printerTemplate = $printerTemplate;
+        $this->password = \hash('sha512', $password, true);
 
         $this->soap = new \SoapClient($this->wsdl, [
             'trace' => $debugMode
@@ -54,40 +47,18 @@ class Api
      */
     public function send(array $shipment): \stdClass
     {
-        $auth = [
-            'username' => $this->username,
-            'password' => $this->password,
-            'senderid' => $this->senderId
+        $data = [
+            'Username' => $this->username,
+            'Password' => $this->password,
+            'ParcelList' => [(object) $shipment]
         ];
 
-        $data = \array_merge($auth, $shipment);
-        $data['hash'] = $this->soap->__soapCall('getglshash', $data);
+        $response = $this->soap->PrintLabels(['printLabelsRequest' => $data]);
 
-        $response = $this->soap->__soapCall('printlabel', $data);
-
-        if (isset($response->successfull) && $response->successfull !== true) {
-            throw new \Exception('Request failed with: ' . $response->errcode . '. ' . $response->errdesc);
+        if (isset($response->ErrorCode)) {
+            throw new \Exception('Request failed with: ' . $response->ErrorCode . '. ' . $response->ErrorDescription);
         }
 
         return $response;
-    }
-
-    /**
-     * Get hash based on request fields.
-     *
-     * @param array $shipment
-     *
-     * @return string
-     */
-    protected function _getPrintLabelHash(array $shipment): string
-    {
-        $hashBase = '';
-        foreach ($shipment as $key => $value) {
-            if (!\in_array($key, ['services', 'hash', 'timestamp', 'printit', 'printertemplate', 'customlabel'])) {
-                $hashBase .= (string) $value;
-            }
-        }
-
-        return \sha1($hashBase);
     }
 }
