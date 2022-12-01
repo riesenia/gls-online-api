@@ -61,4 +61,32 @@ class Api
 
         return $response;
     }
+
+    /**
+     * Get parcel status.
+     *
+     * @param string $parcelNumber
+     * @param bool $pdfResponse
+     * @param string $languageIsoCode
+     *
+     * @return \stdClass
+     */
+    public function getParcelStatus(string $parcelNumber, bool $pdfResponse = false, string $languageIsoCode = 'EN')
+    {
+        $data = [
+            'Username' => $this->username,
+            'Password' => $this->password,
+            'ParcelNumber' => $parcelNumber,
+            'ReturnPOD' => $pdfResponse,
+            'LanguageIsoCode' => $languageIsoCode
+        ];
+
+        $response = $this->soap->GetParcelStatuses(['getParcelStatusesRequest' => $data]);
+
+        if (isset($response->ErrorCode)) {
+            throw new \Exception('Request failed with: ' . $response->ErrorCode . '. ' . $response->ErrorDescription);
+        }
+
+        return $response;
+    }
 }
