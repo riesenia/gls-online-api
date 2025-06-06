@@ -15,6 +15,9 @@ class Api
     /** @var string */
     protected $password;
 
+    /** @var string */
+    protected $webEngine;
+
     /** @var \SoapClient */
     protected $soap;
 
@@ -27,11 +30,12 @@ class Api
      * @param string $printerTemplate
      * @param bool   $debugMode
      */
-    public function __construct(string $username, string $password, string $tld = 'sk', bool $debugMode = false)
+    public function __construct(string $username, string $password, string $tld = 'sk', bool $debugMode = false, string $webEngine = 'Rshop')
     {
         $this->wsdl = \str_replace('{tld}', $tld, $this->wsdl);
         $this->username = $username;
         $this->password = \hash('sha512', $password, true);
+        $this->webEngine = $webEngine;
 
         $this->soap = new \SoapClient($this->wsdl, [
             'trace' => $debugMode
@@ -50,7 +54,8 @@ class Api
         $data = [
             'Username' => $this->username,
             'Password' => $this->password,
-            'ParcelList' => [(object) $shipment]
+            'ParcelList' => [(object) $shipment],
+            'WebshopEngine' => $this->webEngine
         ];
 
         $response = $this->soap->PrintLabels(['printLabelsRequest' => $data]);
