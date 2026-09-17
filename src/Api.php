@@ -21,14 +21,17 @@ class Api
     /** @var \SoapClient */
     protected $soap;
 
+    /** @var string|null */
+    protected $typeOfPrinter;
+
     /**
      * Api constructor.
      *
      * @param string $username
      * @param string $password
      * @param string $tld
-     * @param string $printerTemplate
      * @param bool   $debugMode
+     * @param string $webEngine
      */
     public function __construct(string $username, string $password, string $tld = 'sk', bool $debugMode = false, string $webEngine = 'Rshop')
     {
@@ -40,6 +43,20 @@ class Api
         $this->soap = new \SoapClient($this->wsdl, [
             'trace' => $debugMode
         ]);
+    }
+
+    /**
+     * Set printer type for labels (A4_2x2, A4_4x1, Connect, Thermo, ThermoZPL, ThermoZPL300).
+     *
+     * @param string|null $typeOfPrinter
+     *
+     * @return $this
+     */
+    public function setTypeOfPrinter(string $typeOfPrinter = null): self
+    {
+        $this->typeOfPrinter = $typeOfPrinter;
+
+        return $this;
     }
 
     /**
@@ -57,6 +74,10 @@ class Api
             'ParcelList' => [(object) $shipment],
             'WebshopEngine' => $this->webEngine
         ];
+
+        if ($this->typeOfPrinter) {
+            $data['TypeOfPrinter'] = $this->typeOfPrinter;
+        }
 
         $response = $this->soap->PrintLabels(['printLabelsRequest' => $data]);
 
